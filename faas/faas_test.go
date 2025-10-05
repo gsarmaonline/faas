@@ -63,9 +63,12 @@ func TestNewFaas(t *testing.T) {
 		t.Error("NewFaas() functions map not initialized")
 	}
 
-	// Check that slack function is registered by default
-	if _, exists := faas.functions["slack"]; !exists {
-		t.Error("NewFaas() should register slack function by default")
+	// Check that default functions are registered
+	expectedDefaults := []string{"slack", "email", "docker_registry", "http", "logger", "github"}
+	for _, name := range expectedDefaults {
+		if _, exists := faas.functions[name]; !exists {
+			t.Errorf("NewFaas() should register %s function by default", name)
+		}
 	}
 }
 
@@ -225,6 +228,7 @@ func TestFaas_Integration_WithRealFunctions(t *testing.T) {
 		functions.NewHttpAction(),
 		functions.NewLoggerAction(),
 		functions.NewGithubAction(),
+		functions.NewEmailAction(),
 	}
 
 	err := faas.RegisterFunctions(realFunctions)
@@ -234,7 +238,7 @@ func TestFaas_Integration_WithRealFunctions(t *testing.T) {
 	}
 
 	// Test that all functions are registered
-	expectedFunctions := []string{"slack", "docker_registry", "http", "logger", "github"}
+	expectedFunctions := []string{"slack", "docker_registry", "http", "logger", "github", "email"}
 	for _, name := range expectedFunctions {
 		if _, exists := faas.functions[name]; !exists {
 			t.Errorf("Function %s not registered", name)

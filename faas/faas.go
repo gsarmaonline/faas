@@ -21,7 +21,14 @@ func NewFaas(ctx context.Context) (*Faas, error) {
 		ctx:       ctx,
 		functions: make(map[string]intf.Function),
 	}
-	if err := faas.RegisterFunctions([]intf.Function{functions.NewSlack()}); err != nil {
+	if err := faas.RegisterFunctions([]intf.Function{
+		functions.NewSlack(),
+		functions.NewEmailAction(),
+		functions.NewDockerRegistryAction(),
+		functions.NewHttpAction(),
+		functions.NewLoggerAction(),
+		functions.NewGithubAction(),
+	}); err != nil {
 		return nil, err
 	}
 	return faas, nil
