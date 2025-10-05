@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gsarmaonline/faas/faas/helpers"
 	"github.com/gsarmaonline/faas/faas/intf"
 	"github.com/slack-go/slack"
 )
@@ -28,9 +29,11 @@ func (slackFunc Slack) GetConfig() intf.FunctionConfig {
 	return intf.FunctionConfig{Name: "slack"}
 }
 
-func (slackFunc Slack) ParsePayload(payload intf.Payload) error {
+func (slackFunc *Slack) ParsePayload(payload intf.Payload) error {
+	credManager := helpers.NewCredentialManager()
+	
 	processedSlackInput := SlackInput{
-		ApiToken:  payload["api_token"].(string),
+		ApiToken:  credManager.GetCredential(payload["api_token"], helpers.EnvSlackAPIToken),
 		Message:   payload["message"].(string),
 		ChannelID: payload["channel_id"].(string),
 	}

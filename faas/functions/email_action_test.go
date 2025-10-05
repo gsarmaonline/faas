@@ -1,8 +1,10 @@
 package functions
 
 import (
+	"os"
 	"testing"
 
+	"github.com/gsarmaonline/faas/faas/helpers"
 	"github.com/gsarmaonline/faas/faas/intf"
 )
 
@@ -16,22 +18,33 @@ func TestEmailAction_GetConfig(t *testing.T) {
 }
 
 func TestEmailAction_ParsePayload(t *testing.T) {
+	// Set up environment variable for secure testing
+	originalAPIKey := os.Getenv(helpers.EnvSendGridAPIKey)
+	testEnvAPIKey := "env-test-api-key-12345"
+	os.Setenv(helpers.EnvSendGridAPIKey, testEnvAPIKey)
+	defer func() {
+		if originalAPIKey == "" {
+			os.Unsetenv(helpers.EnvSendGridAPIKey)
+		} else {
+			os.Setenv(helpers.EnvSendGridAPIKey, originalAPIKey)
+		}
+	}()
+
 	tests := []struct {
 		name    string
 		payload intf.Payload
 		want    EmailInput
 	}{
 		{
-			name: "payload with required fields only",
+			name: "secure payload without api_key (uses environment variable)",
 			payload: intf.Payload{
-				"api_key":    "test-api-key",
 				"from_email": "sender@example.com",
 				"to_email":   "recipient@example.com",
 				"subject":    "Test Subject",
 				"plain_text": "Test message body",
 			},
 			want: EmailInput{
-				ApiKey:    "test-api-key",
+				ApiKey:    testEnvAPIKey, // Loaded from environment
 				FromEmail: "sender@example.com",
 				ToEmail:   "recipient@example.com",
 				Subject:   "Test Subject",
@@ -39,9 +52,8 @@ func TestEmailAction_ParsePayload(t *testing.T) {
 			},
 		},
 		{
-			name: "payload with all fields",
+			name: "secure payload with all optional fields (no credentials in payload)",
 			payload: intf.Payload{
-				"api_key":    "test-api-key",
 				"from_email": "sender@example.com",
 				"from_name":  "Test Sender",
 				"to_email":   "recipient@example.com",
@@ -51,7 +63,7 @@ func TestEmailAction_ParsePayload(t *testing.T) {
 				"html_text":  "<h1>Test HTML</h1>",
 			},
 			want: EmailInput{
-				ApiKey:    "test-api-key",
+				ApiKey:    testEnvAPIKey, // Loaded from environment
 				FromEmail: "sender@example.com",
 				FromName:  "Test Sender",
 				ToEmail:   "recipient@example.com",
@@ -59,6 +71,23 @@ func TestEmailAction_ParsePayload(t *testing.T) {
 				Subject:   "Test Subject",
 				PlainText: "Test message body",
 				HtmlText:  "<h1>Test HTML</h1>",
+			},
+		},
+		{
+			name: "payload api_key overrides environment variable (for testing/override scenarios)",
+			payload: intf.Payload{
+				"api_key":    "payload-override-key", // Explicit override
+				"from_email": "sender@example.com",
+				"to_email":   "recipient@example.com",
+				"subject":    "Test Subject",
+				"plain_text": "Test message body",
+			},
+			want: EmailInput{
+				ApiKey:    "payload-override-key", // Should use payload value
+				FromEmail: "sender@example.com",
+				ToEmail:   "recipient@example.com",
+				Subject:   "Test Subject",
+				PlainText: "Test message body",
 			},
 		},
 	}
@@ -151,7 +180,7 @@ func TestEmailAction_Validate(t *testing.T) {
 				PlainText: "Test message",
 			},
 			wantErr: true,
-			errMsg:  "missing required field: api_key",
+			errMsg:  "missing required credential: api_key (provide in payload or set SENDGRID_API_KEY environment variable)",
 		},
 		{
 			name: "missing from_email",
@@ -254,4 +283,128 @@ func TestEmailAction_Execute_Integration(t *testing.T) {
 			t.Errorf("Execute() error = %v", err)
 		}
 	*/
+}
+
+func TestEmailAction_ParsePayload_WithEnvironmentVariable(t *testing.T) {
+	// Test that API key is read from environment variable when not provided in payload
+	originalAPIKey := os.Getenv(helpers.EnvSendGridAPIKey)
+	defer func() {
+		if originalAPIKey == "" {
+			os.Unsetenv(helpers.EnvSendGridAPIKey)
+		} else {
+			os.Setenv(helpers.EnvSendGridAPIKey, originalAPIKey)
+		}
+	}()
+
+	// Set environment variable
+	testAPIKey := "env-api-key-12345"
+	os.Setenv(helpers.EnvSendGridAPIKey, testAPIKey)
+
+	tests := []struct {
+		name           string
+		payload        intf.Payload
+		expectedAPIKey string
+	}{
+		{
+			name: "uses environment variable when api_key not in payload",
+			payload: intf.Payload{
+				"from_email": "sender@example.com",
+				"to_email":   "recipient@example.com",
+				"subject":    "Test Subject",
+				"plain_text": "Test message body",
+			},
+			expectedAPIKey: testAPIKey,
+		},
+		{
+			name: "payload api_key overrides environment variable",
+			payload: intf.Payload{
+				"api_key":    "payload-api-key",
+				"from_email": "sender@example.com",
+				"to_email":   "recipient@example.com",
+				"subject":    "Test Subject",
+				"plain_text": "Test message body",
+			},
+			expectedAPIKey: "payload-api-key",
+		},
+		{
+			name: "uses environment variable when payload api_key is empty",
+			payload: intf.Payload{
+				"api_key":    "",
+				"from_email": "sender@example.com",
+				"to_email":   "recipient@example.com",
+				"subject":    "Test Subject",
+				"plain_text": "Test message body",
+			},
+			expectedAPIKey: testAPIKey,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			emailAction := NewEmailAction()
+			err := emailAction.ParsePayload(tt.payload)
+
+			if err != nil {
+				t.Errorf("ParsePayload() error = %v", err)
+				return
+			}
+
+			if emailAction.Input.ApiKey != tt.expectedAPIKey {
+				t.Errorf("Expected ApiKey = %v, got %v", tt.expectedAPIKey, emailAction.Input.ApiKey)
+			}
+		})
+	}
+}
+
+func TestEmailAction_Validate_WithEnvironmentCredentials(t *testing.T) {
+	// Test validation works with environment variables
+	originalAPIKey := os.Getenv(helpers.EnvSendGridAPIKey)
+	defer func() {
+		if originalAPIKey == "" {
+			os.Unsetenv(helpers.EnvSendGridAPIKey)
+		} else {
+			os.Setenv(helpers.EnvSendGridAPIKey, originalAPIKey)
+		}
+	}()
+
+	t.Run("validation passes with environment variable", func(t *testing.T) {
+		os.Setenv(helpers.EnvSendGridAPIKey, "test-env-api-key")
+
+		emailAction := NewEmailAction()
+		emailAction.Input = EmailInput{
+			ApiKey:    "test-env-api-key", // This would be set by ParsePayload from env var
+			FromEmail: "sender@example.com",
+			ToEmail:   "recipient@example.com",
+			Subject:   "Test Subject",
+			PlainText: "Test message",
+		}
+
+		err := emailAction.Validate()
+		if err != nil {
+			t.Errorf("Validate() error = %v, want nil", err)
+		}
+	})
+
+	t.Run("validation fails with better error message when no credentials", func(t *testing.T) {
+		os.Unsetenv(helpers.EnvSendGridAPIKey)
+
+		emailAction := NewEmailAction()
+		emailAction.Input = EmailInput{
+			FromEmail: "sender@example.com",
+			ToEmail:   "recipient@example.com",
+			Subject:   "Test Subject",
+			PlainText: "Test message",
+		}
+
+		err := emailAction.Validate()
+		if err == nil {
+			t.Error("Validate() error = nil, want error")
+			return
+		}
+
+		expectedErrMsg := "missing required credential: api_key (provide in payload or set SENDGRID_API_KEY environment variable)"
+		if err.Error() != expectedErrMsg {
+			t.Errorf("Validate() error = %v, want %v", err.Error(), expectedErrMsg)
+		}
+	})
 }

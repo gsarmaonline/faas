@@ -20,23 +20,17 @@ func TestDockerAction_ParsePayload(t *testing.T) {
 		name    string
 		payload intf.Payload
 		want    DockerRegistryInput
+		envVars map[string]string
 	}{
 		{
-			name: "payload with only image",
+			name: "secure payload without credentials (using environment variables)",
 			payload: intf.Payload{
-				"image": "nginx",
+				"image":    "nginx",
+				"registry": "registry.example.com",
 			},
-			want: DockerRegistryInput{
-				Image: "nginx",
-			},
-		},
-		{
-			name: "payload with all fields",
-			payload: intf.Payload{
-				"image":             "nginx",
-				"registry":          "registry.example.com",
-				"registry_username": "user",
-				"registry_password": "pass",
+			envVars: map[string]string{
+				"DOCKER_REGISTRY_USERNAME": "user",
+				"DOCKER_REGISTRY_PASSWORD": "pass",
 			},
 			want: DockerRegistryInput{
 				Image:            "nginx",
@@ -45,10 +39,43 @@ func TestDockerAction_ParsePayload(t *testing.T) {
 				RegistryPassword: "pass",
 			},
 		},
+		{
+			name: "payload with only image (no credentials)",
+			payload: intf.Payload{
+				"image": "nginx",
+			},
+			want: DockerRegistryInput{
+				Image: "nginx",
+			},
+		},
+		{
+			name: "payload override credentials (testing override functionality)",
+			payload: intf.Payload{
+				"image":             "nginx",
+				"registry":          "registry.example.com",
+				"registry_username": "override_user",
+				"registry_password": "override_pass",
+			},
+			envVars: map[string]string{
+				"DOCKER_REGISTRY_USERNAME": "env_user",
+				"DOCKER_REGISTRY_PASSWORD": "env_pass",
+			},
+			want: DockerRegistryInput{
+				Image:            "nginx",
+				Registry:         "registry.example.com",
+				RegistryUsername: "override_user",
+				RegistryPassword: "override_pass",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment variables for this test
+			for key, value := range tt.envVars {
+				t.Setenv(key, value)
+			}
+			
 			dockerAction := NewDockerRegistryAction()
 			err := dockerAction.ParsePayload(tt.payload)
 

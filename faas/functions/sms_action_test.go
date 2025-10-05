@@ -20,15 +20,18 @@ func TestSmsAction_ParsePayload(t *testing.T) {
 		name    string
 		payload intf.Payload
 		want    SmsInput
+		envVars map[string]string
 	}{
 		{
-			name: "payload with required fields only",
+			name: "secure payload without credentials (using environment variables)",
 			payload: intf.Payload{
-				"account_sid": "AC123456789",
-				"auth_token":  "test-auth-token",
-				"from":        "+1234567890",
-				"to":          "+0987654321",
-				"body":        "Hello from FAAS!",
+				"from": "+1234567890",
+				"to":   "+0987654321",
+				"body": "Hello from FAAS!",
+			},
+			envVars: map[string]string{
+				"TWILIO_ACCOUNT_SID": "AC123456789",
+				"TWILIO_AUTH_TOKEN":  "test-auth-token",
 			},
 			want: SmsInput{
 				AccountSid: "AC123456789",
@@ -39,14 +42,16 @@ func TestSmsAction_ParsePayload(t *testing.T) {
 			},
 		},
 		{
-			name: "payload with all fields",
+			name: "secure payload with MMS (no credentials in payload)",
 			payload: intf.Payload{
-				"account_sid": "AC123456789",
-				"auth_token":  "test-auth-token",
-				"from":        "+1234567890",
-				"to":          "+0987654321",
-				"body":        "Hello from FAAS!",
-				"media_url":   "https://example.com/image.jpg",
+				"from":      "+1234567890",
+				"to":        "+0987654321",
+				"body":      "Hello from FAAS!",
+				"media_url": "https://example.com/image.jpg",
+			},
+			envVars: map[string]string{
+				"TWILIO_ACCOUNT_SID": "AC123456789",
+				"TWILIO_AUTH_TOKEN":  "test-auth-token",
 			},
 			want: SmsInput{
 				AccountSid: "AC123456789",
@@ -57,10 +62,36 @@ func TestSmsAction_ParsePayload(t *testing.T) {
 				MediaUrl:   "https://example.com/image.jpg",
 			},
 		},
+		{
+			name: "payload override credentials (testing override functionality)",
+			payload: intf.Payload{
+				"account_sid": "AC_OVERRIDE",
+				"auth_token":  "override-token",
+				"from":        "+1234567890",
+				"to":          "+0987654321",
+				"body":        "Hello from FAAS!",
+			},
+			envVars: map[string]string{
+				"TWILIO_ACCOUNT_SID": "AC123456789",
+				"TWILIO_AUTH_TOKEN":  "test-auth-token",
+			},
+			want: SmsInput{
+				AccountSid: "AC_OVERRIDE",
+				AuthToken:  "override-token",
+				From:       "+1234567890",
+				To:         "+0987654321",
+				Body:       "Hello from FAAS!",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment variables for this test
+			for key, value := range tt.envVars {
+				t.Setenv(key, value)
+			}
+			
 			smsAction := NewSmsAction()
 			err := smsAction.ParsePayload(tt.payload)
 
@@ -219,33 +250,33 @@ func TestSmsAction_Execute_Integration(t *testing.T) {
 
 	// Uncomment and modify for actual integration testing:
 	/*
-	accountSid := os.Getenv("TWILIO_ACCOUNT_SID")
-	authToken := os.Getenv("TWILIO_AUTH_TOKEN")
-	from := os.Getenv("TWILIO_FROM_NUMBER")
-	to := os.Getenv("TWILIO_TO_NUMBER")
+		accountSid := os.Getenv("TWILIO_ACCOUNT_SID")
+		authToken := os.Getenv("TWILIO_AUTH_TOKEN")
+		from := os.Getenv("TWILIO_FROM_NUMBER")
+		to := os.Getenv("TWILIO_TO_NUMBER")
 
-	if accountSid == "" || authToken == "" || from == "" || to == "" {
-		t.Skip("Required Twilio environment variables not set")
-	}
+		if accountSid == "" || authToken == "" || from == "" || to == "" {
+			t.Skip("Required Twilio environment variables not set")
+		}
 
-	smsAction := NewSmsAction()
-	smsAction.Input = SmsInput{
-		AccountSid: accountSid,
-		AuthToken:  authToken,
-		From:       from,
-		To:         to,
-		Body:       "Test SMS from FAAS framework",
-	}
+		smsAction := NewSmsAction()
+		smsAction.Input = SmsInput{
+			AccountSid: accountSid,
+			AuthToken:  authToken,
+			From:       from,
+			To:         to,
+			Body:       "Test SMS from FAAS framework",
+		}
 
-	err := smsAction.Validate()
-	if err != nil {
-		t.Errorf("Validate() error = %v", err)
-		return
-	}
+		err := smsAction.Validate()
+		if err != nil {
+			t.Errorf("Validate() error = %v", err)
+			return
+		}
 
-	_, err = smsAction.Execute()
-	if err != nil {
-		t.Errorf("Execute() error = %v", err)
-	}
+		_, err = smsAction.Execute()
+		if err != nil {
+			t.Errorf("Execute() error = %v", err)
+		}
 	*/
 }

@@ -3,6 +3,7 @@ package functions
 import (
 	"fmt"
 
+	"github.com/gsarmaonline/faas/faas/helpers"
 	"github.com/gsarmaonline/faas/faas/intf"
 )
 
@@ -26,14 +27,12 @@ func (githubAction GithubAction) GetConfig() intf.FunctionConfig {
 }
 
 func (githubAction *GithubAction) ParsePayload(payload intf.Payload) error {
+	credManager := helpers.NewCredentialManager()
+	
 	processedInput := GithubInput{
 		Repository: payload["repository"].(string),
 		Action:     payload["action"].(string),
-	}
-
-	// Optional token field
-	if token, exists := payload["token"]; exists && token != nil {
-		processedInput.Token = token.(string)
+		Token:      credManager.GetCredential(payload["token"], helpers.EnvGitHubToken),
 	}
 
 	githubAction.Input = processedInput

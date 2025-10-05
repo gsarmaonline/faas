@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gsarmaonline/faas/faas/helpers"
 	"github.com/gsarmaonline/faas/faas/intf"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -34,8 +35,13 @@ func (emailAction EmailAction) GetConfig() intf.FunctionConfig {
 }
 
 func (emailAction *EmailAction) ParsePayload(payload intf.Payload) error {
+	credManager := helpers.NewCredentialManager()
+
+	// Use credential manager to get API key from env variable or payload
+	apiKey := credManager.GetCredential(payload["api_key"], helpers.EnvSendGridAPIKey)
+
 	processedInput := EmailInput{
-		ApiKey:    payload["api_key"].(string),
+		ApiKey:    apiKey,
 		FromEmail: payload["from_email"].(string),
 		ToEmail:   payload["to_email"].(string),
 		Subject:   payload["subject"].(string),
@@ -64,7 +70,7 @@ func (emailAction *EmailAction) ParsePayload(payload intf.Payload) error {
 
 func (emailAction EmailAction) Validate() (err error) {
 	if emailAction.Input.ApiKey == "" {
-		return fmt.Errorf("missing required field: api_key")
+		return fmt.Errorf("missing required credential: api_key (provide in payload or set %s environment variable)", helpers.EnvSendGridAPIKey)
 	}
 	if emailAction.Input.FromEmail == "" {
 		return fmt.Errorf("missing required field: from_email")

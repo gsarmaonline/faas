@@ -28,6 +28,8 @@ func (dockerAction DockerRegistryAction) GetConfig() intf.FunctionConfig {
 }
 
 func (dockerAction *DockerRegistryAction) ParsePayload(payload intf.Payload) error {
+	credManager := helpers.NewCredentialManager()
+	
 	processedInput := DockerRegistryInput{
 		Image: payload["image"].(string),
 	}
@@ -37,13 +39,9 @@ func (dockerAction *DockerRegistryAction) ParsePayload(payload intf.Payload) err
 		processedInput.Registry = registry.(string)
 	}
 
-	if registryUsername, exists := payload["registry_username"]; exists && registryUsername != nil {
-		processedInput.RegistryUsername = registryUsername.(string)
-	}
-
-	if registryPassword, exists := payload["registry_password"]; exists && registryPassword != nil {
-		processedInput.RegistryPassword = registryPassword.(string)
-	}
+	// Credential fields with fallback to environment variables
+	processedInput.RegistryUsername = credManager.GetCredential(payload["registry_username"], helpers.EnvDockerRegistryUsername)
+	processedInput.RegistryPassword = credManager.GetCredential(payload["registry_password"], helpers.EnvDockerRegistryPassword)
 
 	dockerAction.Input = processedInput
 	return nil

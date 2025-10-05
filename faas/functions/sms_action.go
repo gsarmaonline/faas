@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gsarmaonline/faas/faas/helpers"
 	"github.com/gsarmaonline/faas/faas/intf"
 	"github.com/twilio/twilio-go"
 	twilioApi "github.com/twilio/twilio-go/rest/api/v2010"
@@ -32,9 +33,11 @@ func (smsAction SmsAction) GetConfig() intf.FunctionConfig {
 }
 
 func (smsAction *SmsAction) ParsePayload(payload intf.Payload) error {
+	credManager := helpers.NewCredentialManager()
+	
 	processedInput := SmsInput{
-		AccountSid: payload["account_sid"].(string),
-		AuthToken:  payload["auth_token"].(string),
+		AccountSid: credManager.GetCredential(payload["account_sid"], helpers.EnvTwilioAccountSID),
+		AuthToken:  credManager.GetCredential(payload["auth_token"], helpers.EnvTwilioAuthToken),
 		From:       payload["from"].(string),
 		To:         payload["to"].(string),
 		Body:       payload["body"].(string),
