@@ -24,6 +24,7 @@ func NewFaas(ctx context.Context) (*Faas, error) {
 	if err := faas.RegisterFunctions([]intf.Function{
 		functions.NewSlack(),
 		functions.NewEmailAction(),
+		functions.NewSmsAction(),
 		functions.NewDockerRegistryAction(),
 		functions.NewHttpAction(),
 		functions.NewLoggerAction(),

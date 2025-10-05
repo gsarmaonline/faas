@@ -64,7 +64,7 @@ func TestNewFaas(t *testing.T) {
 	}
 
 	// Check that default functions are registered
-	expectedDefaults := []string{"slack", "email", "docker_registry", "http", "logger", "github"}
+	expectedDefaults := []string{"slack", "email", "sms", "docker_registry", "http", "logger", "github"}
 	for _, name := range expectedDefaults {
 		if _, exists := faas.functions[name]; !exists {
 			t.Errorf("NewFaas() should register %s function by default", name)
@@ -224,11 +224,12 @@ func TestFaas_Integration_WithRealFunctions(t *testing.T) {
 	// Register all the real functions
 	realFunctions := []intf.Function{
 		functions.NewSlack(),
+		functions.NewEmailAction(),
+		functions.NewSmsAction(),
 		functions.NewDockerRegistryAction(),
 		functions.NewHttpAction(),
 		functions.NewLoggerAction(),
 		functions.NewGithubAction(),
-		functions.NewEmailAction(),
 	}
 
 	err := faas.RegisterFunctions(realFunctions)
@@ -238,7 +239,7 @@ func TestFaas_Integration_WithRealFunctions(t *testing.T) {
 	}
 
 	// Test that all functions are registered
-	expectedFunctions := []string{"slack", "docker_registry", "http", "logger", "github", "email"}
+	expectedFunctions := []string{"slack", "email", "sms", "docker_registry", "http", "logger", "github"}
 	for _, name := range expectedFunctions {
 		if _, exists := faas.functions[name]; !exists {
 			t.Errorf("Function %s not registered", name)

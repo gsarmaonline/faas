@@ -19,6 +19,10 @@ The framework includes built-in support for the following function types:
 
 Send emails through SendGrid API integration. Supports both plain text and HTML content with customizable sender/recipient information.
 
+### **SMS** (`sms`)
+
+Send SMS and MMS messages through Twilio API integration. Supports text messages and multimedia messaging with media URL attachments.
+
 ### **Slack** (`slack`)
 
 Send messages to Slack channels using the Slack API. Perfect for notifications and team communication automation.
