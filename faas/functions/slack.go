@@ -21,20 +21,21 @@ type (
 )
 
 func NewSlack() (slackFunc *Slack) {
-	return &Slack{Input: SlackInput{}}
+	return &Slack{}
 }
 
 func (slackFunc Slack) GetConfig() intf.FunctionConfig {
 	return intf.FunctionConfig{Name: "slack"}
 }
 
-func (slackFunc Slack) ParsePayload(payload map[string]interface{}) (SlackInput, error) {
+func (slackFunc Slack) ParsePayload(payload intf.Payload) error {
 	processedSlackInput := SlackInput{
 		ApiToken:  payload["api_token"].(string),
 		Message:   payload["message"].(string),
 		ChannelID: payload["channel_id"].(string),
 	}
-	return processedSlackInput, nil
+	slackFunc.Input = processedSlackInput
+	return nil
 }
 
 func (slackFunc Slack) Validate() (err error) {
@@ -45,7 +46,7 @@ func (slackFunc Slack) Validate() (err error) {
 	return
 }
 
-func (slackFunc Slack) Execute() (output Output, err error) {
+func (slackFunc Slack) Execute() (output intf.FunctionOutput, err error) {
 	client := slack.New(slackFunc.Input.ApiToken)
 
 	if _, _, err = client.PostMessageContext(context.Background(),

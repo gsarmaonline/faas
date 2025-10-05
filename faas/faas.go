@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gsarmaonline/faas/faas/functions"
 	"github.com/gsarmaonline/faas/faas/intf"
 )
 
@@ -15,19 +16,25 @@ type (
 	}
 )
 
-func NewFaas(ctx context.Context) *Faas {
-	return &Faas{
+func NewFaas(ctx context.Context) (*Faas, error) {
+	faas := &Faas{
 		ctx:       ctx,
 		functions: make(map[string]intf.Function),
 	}
+	if err := faas.RegisterFunctions([]intf.Function{functions.NewSlack()}); err != nil {
+		return nil, err
+	}
+	return faas, nil
 }
 
-func (faas *Faas) RegisterFunction(function intf.Function) (err error) {
-	if _, exists := faas.functions[function.GetConfig().Name]; exists {
-		err = fmt.Errorf("function with name %s already exists", function.GetConfig().Name)
-		return
+func (faas *Faas) RegisterFunctions(functions []intf.Function) (err error) {
+	for _, function := range functions {
+		if _, exists := faas.functions[function.GetConfig().Name]; exists {
+			err = fmt.Errorf("function with name %s already exists", function.GetConfig().Name)
+			return
+		}
+		faas.functions[function.GetConfig().Name] = function
 	}
-	faas.functions[function.GetConfig().Name] = function
 	return
 }
 
